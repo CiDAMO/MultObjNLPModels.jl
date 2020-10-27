@@ -11,7 +11,7 @@ mutable struct Rosenbrock <: AbstractMultObjModel
 end
 
 function Rosenbrock()
-  meta = MultObjNLPMeta(2, 2, nnzh = 4, nnzhi = [1, 3])
+  meta = MultObjNLPMeta(2, 2, x0 = [-1.2; 1.0], nnzh = 4, nnzhi = [1, 3])
   counters = MultObjCounters(2)
 
   return Rosenbrock(meta, counters)
@@ -50,8 +50,8 @@ function MultObjNLPModels.hess_structure!(nlp :: Rosenbrock, i :: Integer, rows 
     cols[1] = 1
   elseif i == 2
     NLPModels.@lencheck 3 rows cols
-    rows .= [1, 1, 2]
-    cols .= [1, 2, 2]
+    rows .= [1, 2, 2]
+    cols .= [1, 1, 2]
   end
   return rows, cols
 end
@@ -71,7 +71,7 @@ function MultObjNLPModels.hess_coord!(nlp :: Rosenbrock, i :: Integer, x :: Abst
   return vals
 end
 
-function NLPModels.hprod!(nlp :: Rosenbrock, i :: Integer, x :: AbstractVector, v :: AbstractVector, Hv :: AbstractVector)
+function MultObjNLPModels.hprod!(nlp :: Rosenbrock, i :: Integer, x :: AbstractVector, v :: AbstractVector, Hv :: AbstractVector)
   NLPModels.@lencheck 2 x v Hv
   NLPModels.@rangecheck 1 2 i
   increment!(nlp, :neval_hiprod, i)

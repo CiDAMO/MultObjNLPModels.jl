@@ -1,6 +1,16 @@
 export increment!
 
-sum_counters(nls :: AbstractMultObjModel) = sum_counters(nls.counters)
+function sum_mo_counters(c :: MultObjCounters)
+  s = 0
+  for field in fieldnames(MultObjCounters)
+    field == :counters && continue
+    s += sum(getfield(c, field))
+  end
+  return s
+end
+
+NLPModels.sum_counters(nlp :: AbstractMultObjModel) = sum_counters(nlp.counters.counters)
+sum_mo_counters(nlp :: AbstractMultObjModel) = sum_mo_counters(nlp.counters)
 
 import Base.show
 show_header(io :: IO, nlp :: AbstractMultObjModel) = println(io, typeof(nlp))
@@ -19,14 +29,14 @@ for counter in fieldnames(MultObjCounters)
 
     Get the number of `$(split("$($counter)", "_")[2])` evaluations.
     """
-    $counter(nls :: AbstractMultObjModel) = nls.counters.$counter
+    $counter(nlp :: AbstractMultObjModel) = nlp.counters.$counter
     export $counter
   end
 end
 
 for counter in fieldnames(Counters)
   @eval begin
-    $counter(nls :: AbstractMultObjModel) = nls.counters.counters.$counter
+    NLPModels.$counter(nlp :: AbstractMultObjModel) = nlp.counters.counters.$counter
     export $counter
   end
 end
@@ -41,16 +51,16 @@ function increment!(nlp :: AbstractMultObjModel, s :: Symbol, i :: Integer)
   getproperty(nlp.counters, s)[i] += 1
 end
 
-function NLPModels.reset!(nls :: AbstractMultObjModel)
-  reset!(nls.counters)
-  return nls
+function NLPModels.reset!(nlp :: AbstractMultObjModel)
+  reset!(nlp.counters)
+  return nlp
 end
 
 # TODO: Make these functions more general inside NLPModels.jl:
 
-NLPModels.has_bounds(meta::MultObjNLPMeta) = length(meta.ifree) < meta.nvar
-NLPModels.bound_constrained(meta::MultObjNLPMeta) = meta.ncon == 0 && has_bounds(meta)
-NLPModels.unconstrained(meta::MultObjNLPMeta) = meta.ncon == 0 && !has_bounds(meta)
-NLPModels.linearly_constrained(meta::MultObjNLPMeta) = meta.nlin == meta.ncon > 0
-NLPModels.equality_constrained(meta::MultObjNLPMeta) = length(meta.jfix) == meta.ncon > 0
-NLPModels.inequality_constrained(meta::MultObjNLPMeta) = meta.ncon > 0 && length(meta.jfix) == 0
+# NLPModels.has_bounds(meta::MultObjNLPMeta) = length(meta.ifree) < meta.nvar
+# NLPModels.bound_constrained(meta::MultObjNLPMeta) = meta.ncon == 0 && has_bounds(meta)
+# NLPModels.unconstrained(meta::MultObjNLPMeta) = meta.ncon == 0 && !has_bounds(meta)
+# NLPModels.linearly_constrained(meta::MultObjNLPMeta) = meta.nlin == meta.ncon > 0
+# NLPModels.equality_constrained(meta::MultObjNLPMeta) = length(meta.jfix) == meta.ncon > 0
+# NLPModels.inequality_constrained(meta::MultObjNLPMeta) = meta.ncon > 0 && length(meta.jfix) == 0

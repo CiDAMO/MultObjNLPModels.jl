@@ -154,11 +154,13 @@ end
 
 function NLPModels.obj(nlp :: AbstractMultObjModel, x :: AbstractVector)
   @lencheck nlp.meta.nvar x
+  NLPModels.increment!(nlp, :neval_obj)
   return sum(obj(nlp, i, x) * nlp.meta.weights[i] for i = 1:nlp.meta.nobj)
 end
 
 function NLPModels.grad!(nlp :: AbstractMultObjModel, x :: AbstractVector{T}, g :: AbstractVector) where T
   @lencheck nlp.meta.nvar x g
+  NLPModels.increment!(nlp, :neval_grad)
   fill!(g, zero(T))
   gi = fill!(similar(g), zero(T))
   for i = 1:nlp.meta.nobj
@@ -186,6 +188,7 @@ end
 function NLPModels.hess_coord!(nlp :: AbstractMultObjModel, x :: AbstractVector{T}, vals :: AbstractVector; obj_weight :: Real=one(T)) where T
   @lencheck nlp.meta.nvar x
   @lencheck nlp.meta.nnzh vals
+  NLPModels.increment!(nlp, :neval_hess)
   c = 0
   for i = 1:nlp.meta.nobj
     nnzi = nlp.meta.nnzhi[i]
@@ -197,19 +200,14 @@ function NLPModels.hess_coord!(nlp :: AbstractMultObjModel, x :: AbstractVector{
   return vals
 end
 
-function NLPModels.hess_coord!(nlp :: AbstractMultObjModel, x :: AbstractVector{T}, y :: AbstractVector, vals :: AbstractVector; obj_weight :: Real=one(T)) where T
-end
-
 function NLPModels.hprod!(nlp :: AbstractMultObjModel, x :: AbstractVector{T}, v :: AbstractVector, Hv :: AbstractVector; obj_weight :: Real=one(T)) where T
   @lencheck nlp.meta.nvar x v Hv
+  NLPModels.increment!(nlp, :neval_hprod)
   fill!(Hv, zero(T))
   Hiv = fill!(similar(Hv), zero(T))
   for i = 1:nlp.meta.nobj
     hprod!(nlp, i, x, v, Hiv)
-    Hv .+= nlp.meta.weights[i] * Hiv
+    Hv .+= obj_weight * nlp.meta.weights[i] * Hiv
   end
   return Hv
-end
-
-function NLPModels.hprod!(nlp :: AbstractMultObjModel, x :: AbstractVector{T}, y :: AbstractVector, v :: AbstractVector, Hv :: AbstractVector; obj_weight :: Real=one(T)) where T
 end

@@ -29,18 +29,6 @@ function setproperty!(c :: MultObjCounters, f :: Symbol, x)
   end
 end
 
-function sum_counters(c :: MultObjCounters)
-  s = 0
-  for field in fieldnames(Counters)
-    s += getfield(c.counters, field)
-  end
-  for field in fieldnames(MultObjCounters)
-    field == :counters && continue
-    s += sum(getfield(c, field))
-  end
-  return s
-end
-
 function NLPModels.reset!(c :: MultObjCounters)
   for f in fieldnames(MultObjCounters)
     f == :counters && continue

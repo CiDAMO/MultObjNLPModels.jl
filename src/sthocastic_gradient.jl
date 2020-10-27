@@ -1,8 +1,5 @@
 using LinearAlgebra, Random, SolverTools
 
-NLPModels.has_bounds(meta::MultObjNLPMeta) = length(meta.ifree) < meta.nvar
-NLPModels.unconstrained(meta::MultObjNLPMeta) = meta.ncon == 0 && !has_bounds(meta)
-
 export sthocastic_gradient
 
 function sthocastic_gradient(
