@@ -14,21 +14,26 @@ function sthocastic_gradient(
     penalty::Symbol = :l2,
     max_eval::Int = 0,
     max_time::Float64 = 60.0,
-    max_iter::Int = 1000,
+    max_iter::Int = 100, 
     atol::Float64 = 1e-8,
     rtol::Float64 = 1e-8,
-    power_t::Float64 = 1e-2
+    batch_size::Int = 1,
+    ν::Float64 = 0.5,
+    d::Float64 = 0.5, # for some learning rate,
+    r::Int64 = 10, #step to decline
+    γ0::Float64 = 1.0 # first step
   )
 
   iter = 0
   start_time = time()
   β = nlp.meta.x0
-  βavg = similar(β)
   n = nlp.meta.nobj
+  p = nlp.meta.nvar
+  βavg = similar(β)
   g = similar(β)
 
-  f = obj(nlp, β)
-  grad!(nlp, β, g)
+  f = NLPModels.obj(nlp, β)
+  NLPModels.grad!(nlp, β, g)
 
   Δt = time() - start_time
 
@@ -39,36 +44,62 @@ function sthocastic_gradient(
   elseif penalty == :elasticnet
     β -> ρ * β + (1 - ρ) * sign.(β)
   end
+  
+  if learning_rate == :optimal && α == 0.0
+    @warn("Can't use learning_rate optimal with α = 0.0. Changing to learning_rate step_based.")
+    learning_rate = :step_based
+  end
 
+  γ = if learning_rate == :optimal
+    iter -> γ0 / (α * (1e3 + iter))
+  elseif learning_rate == :invscaling
+    iter -> γ0 / (iter + 1)^ν
+  elseif learning_rate == :time_based
+    iter -> γ0 / (1 + d * iter)
+  elseif learning_rate == :step_based
+    iter -> γ0 * d^(div(1 + iter, r))
+  elseif  learning_rate == :exponential
+    iter -> γ0 / exp(d * iter)
+  end
+  
   status = :unknown
   tired = Δt > max_time || sum_counters(nlp) > max_eval > 0 || iter > max_iter
-  solved = γ < 1e-6
+  small_step = γ(iter) < 1e-6
+  
+  βavg .= 0
+  num_batches = ceil(Int, n / batch_size)
+  
+  while !(small_step || tired)
 
-  while !(solved || tired)
-
-    if learning_rate == :optimal
-      γ = 1 / (α * (1e3 + iter))
-    elseif learning_rate == :invscaling
-      γ = 1e-2 / (iter + 1)^power_t
-    end
-
-    βavg .= 0
-    for i in shuffle(1:n)
-      β -= γ * (α * P(β) + grad!(nlp, i, β, g))
+    Rindex = shuffle(1:n)
+    for l = 1:num_batches
+      index = if l < num_batches
+        batch_size * (l - 1) .+ (1:batch_size)
+      else
+        batch_size * (l - 1) + 1:n
+      end
+      
+      grad = zeros(p)
+      for i in index
+        grad!(nlp, Rindex[i], β, g) 
+        grad += g
+      end
+      β -= γ(iter) * (α * P(β) + grad / length(index))
       βavg += β
     end
-    βavg = βavg / n
 
+    
+    βavg = βavg / num_batches
     Δt = time() - start_time
     iter += 1
     tired = Δt > max_time || sum_counters(nlp) > max_eval > 0 || iter > max_iter
-    solved = γ < 1e-2
+    small_step = γ(iter) < 1e-6
   end
 
-  if solved
+  status = if small_step
     :small_step
   elseif tired
-    if Δt >: max_time
+    if Δt > max_time
       :max_time
     elseif sum_counters(nlp) > max_eval
       :max_eval
