@@ -30,6 +30,7 @@ function sthocastic_gradient(
   n = nlp.meta.nobj
   p = nlp.meta.nvar
   βavg = similar(β)
+  g_tmp = similar(β)
   g = similar(β)
 
   f = NLPModels.obj(nlp, β)
@@ -53,11 +54,11 @@ function sthocastic_gradient(
   γ = if learning_rate == :optimal
     iter -> γ0 / (α * (1e3 + iter))
   elseif learning_rate == :invscaling
-    iter -> γ0 / (iter + 1)^ν
+    iter -> γ0 / (iter + 1) ^ ν
   elseif learning_rate == :time_based
     iter -> γ0 / (1 + d * iter)
   elseif learning_rate == :step_based
-    iter -> γ0 * d^(div(1 + iter, r))
+    iter -> γ0 * d ^ div(1 + iter, r)
   elseif  learning_rate == :exponential
     iter -> γ0 / exp(d * iter)
   end
@@ -79,12 +80,12 @@ function sthocastic_gradient(
         batch_size * (l - 1) + 1:n
       end
       
-      grad = zeros(p)
+      g .= 0
       for i in index
-        grad!(nlp, Rindex[i], β, g) 
-        grad += g
+        grad!(nlp, Rindex[i], β, g_tmp)
+        g += g_tmp
       end
-      β -= γ(iter) * (α * P(β) + grad / length(index))
+      β -= γ(iter) * (α * P(β) + g / length(index))
       βavg += β
     end
 
