@@ -26,12 +26,13 @@ end
 
 for counter in fieldnames(Counters)
   @eval begin
-    $counter(nls :: AbstractMultObjModel) = nls.counters.counters.$counter
+    NLPModels.$counter(nls :: AbstractMultObjModel) = nls.counters.counters.$counter
     export $counter
   end
 end
 
 import NLPModels.increment!
+
 """
     increment!(nlp, s, i)
 
@@ -39,6 +40,10 @@ Increment counter `s[i]` of problem `nlp`.
 """
 function increment!(nlp :: AbstractMultObjModel, s :: Symbol, i :: Integer)
   getproperty(nlp.counters, s)[i] += 1
+end
+
+function NLPModels.increment!(nlp :: AbstractMultObjModel, s :: Symbol)
+  setproperty!(nlp.counters.counters, s, getproperty(nlp.counters.counters, s) + 1)
 end
 
 function NLPModels.reset!(nls :: AbstractMultObjModel)

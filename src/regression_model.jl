@@ -1,8 +1,13 @@
-export RegressionModel, LinearRegressionModel, LogisticRegressionModel
+export RegressionModel, LogisticRegressionModel
 
 using ForwardDiff, LinearAlgebra
 
-mutable struct RegressionModel <: AbstractMultObjModel
+abstract type AbstractRegressionModel <: AbstractMultObjModel end
+
+include("linear-regression-model.jl")
+include("logistic-regression-model.jl")
+
+mutable struct RegressionModel <: AbstractRegressionModel
   meta :: MultObjNLPMeta
   counters :: MultObjCounters
 
@@ -20,29 +25,28 @@ function RegressionModel(X, y, h, ℓ)
   return RegressionModel(meta, counters, X, y, h, ℓ)
 end
 
-function LinearRegressionModel(X, y)
-  h(x, β) = dot(x,β)
-  ℓ(y, ŷ) = (y - ŷ)^2 / 2
-  return RegressionModel(X, y, h, ℓ)
-end
-
-function LogisticRegressionModel(X, y)
-  h(x, β) = 1 / (1 + exp(-dot(x, β)))
-  ℓ(y, ŷ) = -y * log(ŷ + 1e-8) - (1 - y) * log(1 - ŷ + 1e-8)
-  return RegressionModel(X, y, h, ℓ)
-end
-
-function MultObjNLPModels.obj(nlp :: RegressionModel, i :: Integer, β :: AbstractVector)
+function NLPModels.obj(nlp :: RegressionModel, i :: Integer, β :: AbstractVector)
   NLPModels.@lencheck nlp.meta.nvar β
   NLPModels.@rangecheck 1 nlp.meta.nobj i
   increment!(nlp, :neval_obji, i)
   return nlp.ℓ(nlp.y[i], nlp.h(nlp.X[i,:], β))
 end
 
-function MultObjNLPModels.grad!(nlp :: RegressionModel, i :: Integer, β :: AbstractVector , g :: AbstractVector)
+function NLPModels.grad!(nlp :: RegressionModel, i :: Integer, β :: AbstractVector , g :: AbstractVector)
   NLPModels.@lencheck nlp.meta.nvar β g
   NLPModels.@rangecheck 1 nlp.meta.nobj i
   increment!(nlp, :neval_gradi, i)
   ForwardDiff.gradient!(g, β->nlp.ℓ(nlp.y[i], nlp.h(nlp.X[i,:], β)), β)
+  return g
+end
+
+function NLPModels.grad!(nlp :: RegressionModel, J :: AbstractVector{<: Integer}, β :: AbstractVector , g :: AbstractVector)
+  NLPModels.@lencheck nlp.meta.nvar β g
+  for i in J
+    increment!(nlp, :neval_gradi, i)
+  end
+  ForwardDiff.gradient!(g,
+    β -> sum(nlp.ℓ(nlp.y[i], nlp.h(nlp.X[i,:], β)) for i in J),
+  β)
   return g
 end

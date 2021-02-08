@@ -13,21 +13,6 @@ mutable struct MultObjCounters
 end
 
 import Base.getproperty, Base.setproperty!
-function getproperty(c :: MultObjCounters, f :: Symbol)
-  if f in fieldnames(Counters)
-    getfield(c.counters, f)
-  else
-    getfield(c, f)
-  end
-end
-
-function setproperty!(c :: MultObjCounters, f :: Symbol, x)
-  if f in fieldnames(Counters)
-    setfield!(c.counters, f, x)
-  else
-    setfield!(c, f, x)
-  end
-end
 
 function sum_counters(c :: MultObjCounters)
   s = 0

@@ -22,21 +22,21 @@ abstract type AbstractMultObjModel <: AbstractNLPModel end
 
 Evaluate ``fᵢ(x)``, the i-th objective function of `nlp` at `x`.
 """
-function obj end
+NLPModels.obj(nlp, i, x)
 
 """
     g = grad!(nlp, i, x, g)
 
 Evaluate ``∇fᵢ(x)``, the gradient of the i-th objective function at `x` in place.
 """
-function grad! end
+NLPModels.grad!(nlp, i, x, g)
 
 """
     g = grad(nlp, i, x)
 
 Evaluate ``∇fᵢ(x)``, the gradient of the i-th objective function at `x`.
 """
-function grad(nlp :: AbstractMultObjModel, i :: Integer, x :: AbstractVector)
+function NLPModels.grad(nlp :: AbstractMultObjModel, i :: Integer, x :: AbstractVector)
   @lencheck nlp.meta.nvar x
   NLPModels.@rangecheck 1 nlp.meta.nobj i
   g = zeros(eltype(x), nlp.meta.nvar)
@@ -44,11 +44,39 @@ function grad(nlp :: AbstractMultObjModel, i :: Integer, x :: AbstractVector)
 end
 
 """
+    grad!(nlp, J, x, g)
+
+Evaluate ``∑ᵢ∈J ∇fᵢ(x)``, the sum of the gradients of the i-th objective functions at `x` for every `i` in `J`.
+Also known as the batch gradient with batch `J`.
+"""
+function NLPModels.grad!(nlp :: AbstractMultObjModel, J :: AbstractVector{<: Integer}, x :: AbstractVector{T}, g :: AbstractVector) where T
+  @lencheck nlp.meta.nvar x g
+  fill!(g, zero(T))
+  gi = fill!(similar(g), zero(T))
+  for i = J
+    grad!(nlp, i, x, gi)
+    g .+= nlp.meta.weights[i] * gi
+  end
+  return g
+end
+
+"""
+    g = grad(nlp, J, x)
+
+Evaluate ``∑ᵢ∈J ∇fᵢ(x)``, the sum of the gradients of the i-th objective functions at `x` for every `i` in `J`.
+Also known as the batch gradient with batch `J`.
+"""
+function NLPModels.grad!(nlp :: AbstractMultObjModel, J :: AbstractVector{<: Integer}, x :: AbstractVector{T}) where T
+  g = similar(x)
+  return grad!(nlp, J, x, g)
+end
+
+"""
     hess_structure!(nlp, i, rows, cols)
 
 Return the structure of the Lagrangian Hessian in sparse coordinate format in place.
 """
-function hess_structure! end
+NLPModels.hess_structure!(nlp, i, rows, cols)
 
 """
     hess_structure!(nlp, i)
@@ -69,7 +97,7 @@ Evaluate the i-th objective Hessian at `x` in sparse coordinate format,
 i.e., ``∇²fᵢ(x)``, rewriting `vals`.
 Only the lower triangle is returned.
 """
-function hess_coord! end
+NLPModels.hess_coord!(nlp, i, x, vals)
 
 """
     vals = hess_coord(nlp, i, x)
@@ -91,7 +119,7 @@ end
 Evaluate the product of the i-th objective Hessian at `x` with the vector `v` in
 place, where the objective Hessian is ``∇²fᵢ(x)``.
 """
-function hprod! end
+NLPModels.hprod!(nlp, i, x, v, Hv)
 
 """
     Hv = hprod(nlp, i, x, v)
@@ -112,7 +140,7 @@ end
 Evaluate the i-th objective Hessian at `x` as a sparse matrix.
 Only the lower triangle is returned.
 """
-function hess(nlp :: AbstractMultObjModel, i :: Integer, x :: AbstractVector)
+function NLPModels.hess(nlp :: AbstractMultObjModel, i :: Integer, x :: AbstractVector)
   @lencheck nlp.meta.nvar x
   NLPModels.@rangecheck 1 nlp.meta.nobj i
   rows, cols = hess_structure(nlp, i)
